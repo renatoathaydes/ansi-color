@@ -17,24 +17,25 @@ A library to make it easy to colorize terminal output using ANSI escape sequence
 
 The following code samples show how to use the basic functions of this library:
 
-@racketblock[
-; set the parameters used to colorize output...
-; if not set, the output is not colorized!
+@#reader scribble/comment-reader
+(racketblock
+;; set the parameters used to colorize output...
+;; if not set, the output is not colorized!
 (background-color 'black)
 (foreground-color 'green)
 
-; display "Hello world" with the current parameters (i.e. green on black)
+;; display "Hello world" with the current parameters (i.e. green on black)
 (color-display "Hello world")
 
-; with explicit parameters
+;; with explicit parameters
 (parameterize ([background-color 'white]
                [foreground-color 'blue])
     (color-display "Thie is blue on white"))
 
-; using the more convenient helper function, `with-colors`
+;; using the more convenient helper function, `with-colors`
 (with-colors 'white 'blue
     (displayln "This is also blue on white"))
-]
+)
 
 @;--------------------------------------------------------------------
 
