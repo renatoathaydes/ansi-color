@@ -96,24 +96,3 @@
        (proc)
        (display reset))]
     [(fore-color proc) (with-colors null fore-color proc)]))
-
-(color-displayln "Default color output")
-(displayln "simple text")
-
-(with-colors 'red 'blue
-  (λ () (display "Red Blue\nOver multiple\nlines")))
-
-(displayln "\nsimple text")
-
-(with-colors null null
-  (λ () (displayln "No colors")))
-
-(displayln "simple text")
-
-(color-displayln "Color output")
-
-(with-colors 'b-yellow 'b-red
-  (λ () (displayln "Yellow Red")))
-
-(with-colors 'green 'black
-  (λ () (displayln "Green Black")))
