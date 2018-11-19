@@ -69,10 +69,26 @@
 
 ;; implementation
 
+(define (needs-reset? bkg fore)
+  (cond [(no-reset) #f]
+        [else (not (and (equal? "" bkg) (equal? "" fore)))]))
+
+(module+ test
+  (require rackunit)
+
+  (check-eq? (needs-reset? "" "") #f)
+  (check-eq? (needs-reset? "red" "") #t)
+  (check-eq? (needs-reset? "" "blue") #t)
+  (check-eq? (needs-reset? "red" "green") #t)
+  (check-eq? (parameterize ([no-reset #t])
+               (needs-reset? "" "")) #f)
+  (check-eq? (parameterize ([no-reset #t])
+               (needs-reset? "red" "green")) #f))
+
 (define (color-display datum [out (current-output-port)])
   (let* ([bkg  (hash-ref bkg-color-map (background-color))]
          [fore (hash-ref fore-color-map (foreground-color))]
-         [-reset (if (no-reset) "" reset)])
+         [-reset (if (needs-reset? bkg fore) reset "")])
     (display (string-append bkg fore datum -reset) out)))
 
 (define (color-displayln datum [out (current-output-port)])
@@ -89,3 +105,34 @@
        (proc)
        (display reset))]
     [(fore-color proc) (with-colors null fore-color proc)]))
+
+
+;; tests
+
+(module+ test
+  (define (wrap-in-color color text)
+    (string-append (hash-ref fore-color-map color) text reset))
+
+  (define (get-output proc)
+    (let ([out (open-output-string)])
+      (parameterize ([current-output-port out])
+        (proc)
+        (get-output-string out))))
+
+  ; tests for color-display  
+  (let ([hello-uncolored (get-output (lambda () (color-display "hello")))]
+        [world-fore-red (get-output (lambda ()
+                                      (parameterize ([background-color 'red])
+                                        (color-display "world"))))]
+        [tree-fore-blue (get-output (lambda ()
+                                      (parameterize ([foreground-color 'blue])
+                                        (color-display "tree"))))]
+        [animal-yellow-black (get-output (lambda ()
+                                          (parameterize ([background-color 'yellow]
+                                                         [foreground-color 'black])
+                                            (color-display "animal"))))])
+    (check-equal? hello-uncolored "hello")
+    (check-equal? world-fore-red "\033[41mworld\033[0m")
+    (check-equal? tree-fore-blue "\033[34mtree\033[0m")
+    (check-equal? animal-yellow-black "\033[43m\033[30manimal\033[0m"))
+    )
