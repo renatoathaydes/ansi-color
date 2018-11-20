@@ -1,5 +1,7 @@
 #lang racket/base
 
+(require racket/match)
+
 (provide color-display
          color-displayln
          with-colors
@@ -10,7 +12,10 @@
 
 (define reset "\033[0m")
 
-(define (color256 code)
+(define (bkg-color256 code)
+  (string-append "\033[48;5;" (number->string code) "m"))
+
+(define (fore-color256 code)
   (string-append "\033[38;5;" (number->string code) "m"))
 
 (define decoration-map
@@ -36,8 +41,7 @@
           (b-blue . "\033[34;1m")
           (b-magenta . "\033[35;1m")
           (b-cyan . "\033[36;1m")
-          (b-white . "\033[37;1m")
-          (() . "")))
+          (b-white . "\033[37;1m")))
 
 (define bkg-color-map
   #hasheq(
@@ -56,44 +60,49 @@
           (b-blue . "\033[44;1m")
           (b-magenta . "\033[45;1m")
           (b-cyan . "\033[46;1m")
-          (b-white . "\033[47;1m")
-          (() . "")))
+          (b-white . "\033[47;1m")))
 
 ;; customization parameters
 
-(define background-color (make-parameter null))
+(define background-color (make-parameter ""
+  (lambda (arg) (as-escape-seq #t arg))))
 
-(define foreground-color (make-parameter null))
+(define foreground-color (make-parameter ""
+  (lambda (arg) (as-escape-seq #f arg))))
 
 (define no-reset (make-parameter #f))
 
 ;; implementation
 
+(define (as-escape-seq bkg? arg)
+  (define (raise-arg-error)
+    (raise-arguments-error 'color
+      "Cannot convert argument to color or style (not a valid symbol or integer in the 0-255 range)"
+      "color"
+      arg))
+  (define map (if bkg? bkg-color-map fore-color-map))
+  (match arg
+    [(? null?) ""]
+    ["" ""]
+    [(? symbol? s) (hash-ref map s (lambda () (raise-arg-error)))]
+    [(? integer? x)
+      #:when (and (<= x 255) (>= x 0))
+        ((if bkg? bkg-color256 fore-color256) x)]
+    [_ (raise-arg-error)]))
+
 (define (needs-reset? bkg fore)
   (cond [(no-reset) #f]
         [else (not (and (equal? "" bkg) (equal? "" fore)))]))
 
-(module+ test
-  (require rackunit)
-
-  (check-eq? (needs-reset? "" "") #f)
-  (check-eq? (needs-reset? "red" "") #t)
-  (check-eq? (needs-reset? "" "blue") #t)
-  (check-eq? (needs-reset? "red" "green") #t)
-  (check-eq? (parameterize ([no-reset #t])
-               (needs-reset? "" "")) #f)
-  (check-eq? (parameterize ([no-reset #t])
-               (needs-reset? "red" "green")) #f))
-
 (define (color-display datum [out (current-output-port)])
-  (let* ([bkg  (hash-ref bkg-color-map (background-color))]
-         [fore (hash-ref fore-color-map (foreground-color))]
+  (let* ([bkg (background-color)]
+         [fore (foreground-color)]
          [-reset (if (needs-reset? bkg fore) reset "")])
     (display (string-append bkg fore datum -reset) out)))
 
 (define (color-displayln datum [out (current-output-port)])
   (color-display datum out)
-  (displayln "" out))
+  (newline out))
 
 (define with-colors
   (case-lambda
@@ -101,15 +110,28 @@
      (parameterize ([background-color bkg-color]
                     [foreground-color fore-color]
                     [no-reset #t])
-       (color-display "")
-       (proc)
-       (display reset))]
-    [(fore-color proc) (with-colors null fore-color proc)]))
+       (color-display "") ; sets the colors in the terminal
+       (proc)             ; normal displays are colorized here
+       (display reset))]  ; reset colors in the terminal
+    [(fore-color proc)
+     (with-colors null fore-color proc)]))
 
 
-;; tests
+;; TESTS
 
 (module+ test
+    
+  (require rackunit)
+
+  (check-eq? (needs-reset? "" "") #f)
+  (check-eq? (needs-reset? "red" "") #t)
+  (check-eq? (needs-reset? "" "blue") #t)
+  (check-eq? (needs-reset? "red" "green") #t)
+  (check-eq? (parameterize ([no-reset #t])
+              (needs-reset? "" "")) #f)
+  (check-eq? (parameterize ([no-reset #t])
+              (needs-reset? "red" "green")) #f)
+
   (define (wrap-in-color color text)
     (string-append (hash-ref fore-color-map color) text reset))
 
@@ -129,10 +151,11 @@
                                         (color-display "tree"))))]
         [animal-yellow-black (get-output (lambda ()
                                           (parameterize ([background-color 'yellow]
-                                                         [foreground-color 'black])
+                                                          [foreground-color 'black])
                                             (color-display "animal"))))])
     (check-equal? hello-uncolored "hello")
     (check-equal? world-fore-red "\033[41mworld\033[0m")
     (check-equal? tree-fore-blue "\033[34mtree\033[0m")
     (check-equal? animal-yellow-black "\033[43m\033[30manimal\033[0m"))
-    )
+
+)
