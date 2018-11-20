@@ -70,6 +70,9 @@
 (define foreground-color (make-parameter ""
   (lambda (arg) (as-escape-seq #f arg))))
 
+(define font-style (make-parameter ""
+  (lambda (arg) (as-style-seq arg))))
+
 (define no-reset (make-parameter #f))
 
 ;; implementation
@@ -77,7 +80,7 @@
 (define (as-escape-seq bkg? arg)
   (define (raise-arg-error)
     (raise-arguments-error 'color
-      "Cannot convert argument to color or style (not a valid symbol or integer in the 0-255 range)"
+      "Cannot convert argument to color (not a valid symbol or integer in the 0-255 range)"
       "color"
       arg))
   (define map (if bkg? bkg-color-map fore-color-map))
@@ -90,15 +93,30 @@
         ((if bkg? bkg-color256 fore-color256) x)]
     [_ (raise-arg-error)]))
 
-(define (needs-reset? bkg fore)
+(define (as-style-seq arg) 
+  (define (raise-arg-error)
+    (raise-arguments-error 'style
+      "Cannot convert argument to style (not a valid symbol)"
+      "style"
+      arg))
+  (match arg
+    ["" ""]
+    [(? null?) ""]
+    [(? symbol? s) (hash-ref decoration-map s (lambda () (raise-arg-error)))]
+    [_ (raise-arg-error)]))
+
+(define (needs-reset? bkg fore style)
   (cond [(no-reset) #f]
-        [else (not (and (equal? "" bkg) (equal? "" fore)))]))
+        [else (not (and (equal? "" bkg)
+                        (equal? "" fore)
+                        (equal? "" style)))]))
 
 (define (color-display datum [out (current-output-port)])
   (let* ([bkg (background-color)]
          [fore (foreground-color)]
-         [-reset (if (needs-reset? bkg fore) reset "")])
-    (display (string-append bkg fore datum -reset) out)))
+         [style (font-style)]
+         [-reset (if (needs-reset? bkg fore style) reset "")])
+    (display (string-append bkg fore style datum -reset) out)))
 
 (define (color-displayln datum [out (current-output-port)])
   (color-display datum out)
@@ -123,14 +141,16 @@
     
   (require rackunit)
 
-  (check-eq? (needs-reset? "" "") #f)
-  (check-eq? (needs-reset? "red" "") #t)
-  (check-eq? (needs-reset? "" "blue") #t)
-  (check-eq? (needs-reset? "red" "green") #t)
+  (check-eq? (needs-reset? "" "" "") #f)
+  (check-eq? (needs-reset? "red" "" "") #t)
+  (check-eq? (needs-reset? "" "blue" "") #t)
+  (check-eq? (needs-reset? "red" "green" "") #t)
+  (check-eq? (needs-reset? "red" "green" "underline") #t)
+  (check-eq? (needs-reset? "" "" "underline") #t)
   (check-eq? (parameterize ([no-reset #t])
-              (needs-reset? "" "")) #f)
+              (needs-reset? "" "" "")) #f)
   (check-eq? (parameterize ([no-reset #t])
-              (needs-reset? "red" "green")) #f)
+              (needs-reset? "red" "green" "reversed")) #f)
 
   (define (wrap-in-color color text)
     (string-append (hash-ref fore-color-map color) text reset))
@@ -152,10 +172,15 @@
         [animal-yellow-black (get-output (lambda ()
                                           (parameterize ([background-color 'yellow]
                                                           [foreground-color 'black])
-                                            (color-display "animal"))))])
+                                            (color-display "animal"))))]
+        [something-bold (get-output (lambda ()
+                                      (parameterize ([font-style 'bold])
+                                        (color-display "something"))))])
+  
     (check-equal? hello-uncolored "hello")
     (check-equal? world-fore-red "\033[41mworld\033[0m")
     (check-equal? tree-fore-blue "\033[34mtree\033[0m")
-    (check-equal? animal-yellow-black "\033[43m\033[30manimal\033[0m"))
+    (check-equal? animal-yellow-black "\033[43m\033[30manimal\033[0m")
+    (check-equal? something-bold "\033[1msomething\033[0m"))
 
 )
