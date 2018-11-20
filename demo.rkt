@@ -29,4 +29,4 @@
     (define back (if bkg? code null))
     (define fore (if bkg? null code))
     (with-colors back fore (lambda () (display (fmt code)))))
-    (newline))
+  (newline))
