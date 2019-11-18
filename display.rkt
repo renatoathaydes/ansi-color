@@ -129,7 +129,9 @@
                     [foreground-color fore-color]
                     [no-reset #t])
        (color-display "") ; sets the colors in the terminal
-       (proc)             ; normal displays are colorized here
+       (match proc        ; normal displays are colorized here
+              [(list _ ...) (eval proc)]
+              [_            (proc)])
        (display reset))]  ; reset colors in the terminal
     [(fore-color proc)
      (with-colors null fore-color proc)]))

@@ -34,7 +34,7 @@ The following code samples show how to use the basic functions of this library:
 
 ;; using the more convenient helper function, `with-colors`
 (with-colors 'white 'blue
-    (displayln "This is also blue on white"))
+    '(displayln "This is also blue on white"))
 )
 
 @;--------------------------------------------------------------------
@@ -72,11 +72,4 @@ Sets the foreground and, optionally, the background color to be used to display 
 with the conventional @racket[display] and @racket[displayln] functions.
 Using @racket[color-display] or @racket[color-displayln] within the given @racket[proc] causes the colors to
 be reset, and thus should be avoided.
-}
-
-@defproc*[([(make-pb&j) sandwich?]
-           [(make-pb&j [jelly jelly?]) sandwich?])]{
-  Returns a peanut butter and jelly sandwich. If @racket[jelly]
-  is provided, then it is used instead of the standard (grape)
-  jelly.
 }
