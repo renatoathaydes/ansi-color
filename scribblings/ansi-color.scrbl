@@ -30,11 +30,11 @@ The following code samples show how to use the basic functions of this library:
 ;; with explicit parameters
 (parameterize ([background-color 'white]
                [foreground-color 'blue])
-    (color-display "Thie is blue on white"))
+    (color-display "This is blue on white"))
 
 ;; using the more convenient helper function, `with-colors`
 (with-colors 'white 'blue
-    '(displayln "This is also blue on white"))
+    (lambda () (displayln "This is also blue on white")))
 )
 
 @;--------------------------------------------------------------------
@@ -42,11 +42,11 @@ The following code samples show how to use the basic functions of this library:
 @section{Parameters}
 
 @defparam[background-color color ansi-color?]{
-  Defines the background color that is used by @racket[color-display] and @racket[colo-displayln].
+  Defines the background color that is used by @racket[color-display] and @racket[color-displayln].
 }
 
 @defparam[foreground-color color ansi-color?]{
-  Defines the foreground color that is used by @racket[color-display] and @racket[colo-displayln].
+  Defines the foreground color that is used by @racket[color-display] and @racket[color-displayln].
 }
 
 @;--------------------------------------------------------------------
@@ -66,8 +66,8 @@ Like @racket[displayln], but using the parameters @racket[background-color] and 
 and style the output.
 }
 
-@defproc*[([(with-colors [bkg-color ansi-color?] [fore-color ansi-color?] [expr expr?]) void?]
-           [(with-colors [fore-color ansi-color?] [expr expr?]) void?])]{
+@defproc*[([(with-colors [bkg-color ansi-color?] [fore-color ansi-color?] [proc (-> any)]) void?]
+           [(with-colors [fore-color ansi-color?] [proc (-> any)]) void?])]{
 Sets the foreground and, optionally, the background color to be used to display text
 with the conventional @racket[display] and @racket[displayln] functions.
 Using @racket[color-display] or @racket[color-displayln] within the given @racket[proc] causes the colors to
