@@ -4,6 +4,7 @@
 
 (provide color-display
          color-displayln
+         ansi-color?
          with-colors
          background-color
          foreground-color)
@@ -77,6 +78,11 @@
 
 ;; implementation
 
+(define (ansi-color? x)
+  (or
+      (and (integer? x) (<= x 255) (>= x 0))
+      (and (symbol? x)  (hash-has-key? fore-color-map x))))
+
 (define (as-escape-seq bkg? arg)
   (define (raise-arg-error)
     (raise-arguments-error 'color
@@ -93,7 +99,7 @@
         ((if bkg? bkg-color256 fore-color256) x)]
     [_ (raise-arg-error)]))
 
-(define (as-style-seq arg) 
+(define (as-style-seq arg)
   (define (raise-arg-error)
     (raise-arguments-error 'style
       "Cannot convert argument to style (not a valid symbol)"
@@ -129,9 +135,7 @@
                     [foreground-color fore-color]
                     [no-reset #t])
        (color-display "") ; sets the colors in the terminal
-       (match proc        ; normal displays are colorized here
-              [(list _ ...) (eval proc)]
-              [_            (proc)])
+       (proc)
        (display reset))]  ; reset colors in the terminal
     [(fore-color proc)
      (with-colors null fore-color proc)]))
@@ -153,6 +157,25 @@
               (needs-reset? "" "" "")) #f)
   (check-eq? (parameterize ([no-reset #t])
               (needs-reset? "red" "green" "reversed")) #f)
+  
+  (check-eq? (ansi-color? 'red) #t)
+  (check-eq? (ansi-color? 'white) #t)
+  (check-eq? (ansi-color? 'black) #t)
+  (check-eq? (ansi-color? 'b-red) #t)
+  (check-eq? (ansi-color? 'b-white) #t)
+  (check-eq? (ansi-color? 'b-black) #t)
+  (check-eq? (ansi-color? 'some) #f)
+  (check-eq? (ansi-color? 'foo-bar) #f)
+  (check-eq? (ansi-color? 0) #t)
+  (check-eq? (ansi-color? 1) #t)
+  (check-eq? (ansi-color? 10) #t)
+  (check-eq? (ansi-color? 200) #t)
+  (check-eq? (ansi-color? 255) #t)
+  (check-eq? (ansi-color? 256) #f)
+  (check-eq? (ansi-color? -1) #f)
+  (check-eq? (ansi-color? -10) #f)
+  (check-eq? (ansi-color? "blue") #f)
+  (check-eq? (ansi-color? #t) #f)
 
   (define (wrap-in-color color text)
     (string-append (hash-ref fore-color-map color) text reset))
@@ -163,7 +186,7 @@
         (proc)
         (get-output-string out))))
 
-  ; tests for color-display  
+  ; tests for color-display
   (let ([hello-uncolored (get-output (lambda () (color-display "hello")))]
         [world-fore-red (get-output (lambda ()
                                       (parameterize ([background-color 'red])
@@ -184,5 +207,16 @@
     (check-equal? tree-fore-blue "\033[34mtree\033[0m")
     (check-equal? animal-yellow-black "\033[43m\033[30manimal\033[0m")
     (check-equal? something-bold "\033[1msomething\033[0m"))
+
+  ; tests for with-colors
+  (let ([blue-and-white (get-output (lambda () (with-colors 'blue 'white (lambda () (display "b-a-w")))))]
+        [red-and-green  (get-output (lambda () (with-colors 'red 'green (lambda () (display "r-a-g")))))]
+        [blue           (get-output (lambda () (with-colors 'blue (lambda () (display "b")))))]
+        [white          (get-output (lambda () (with-colors 'white (lambda () (display "w")))))])
+
+    (check-equal? blue-and-white "\033[44m\033[37mb-a-w\033[0m")
+    (check-equal? red-and-green "\033[41m\033[32mr-a-g\033[0m")
+    (check-equal? blue "\033[34mb\033[0m")
+    (check-equal? white "\033[37mw\033[0m"))
 
 )
